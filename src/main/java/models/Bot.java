@@ -5,18 +5,25 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.select.Elements;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.send.SendDocument;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageReplyMarkup;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.EditMessageText;
+import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Update;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 
+import java.io.File;
 import java.io.FileWriter;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 public class Bot extends TelegramLongPollingBot {
 
+    Map<String,String>mapShares = new HashMap<>();
+    StringBuilder builderShares = new StringBuilder();
 
  private InlineKeyboardButton buttonForListShares = InlineKeyboardButton.builder()
          .text("Получить список всех акций")
@@ -100,6 +107,8 @@ public void forWorkWithButtons(Update update){
                 if (callbackData.equals(buttonForListShares.getCallbackData())){
                     editMessageText.setText(" dadada");
 
+
+
                     try {
                     Document document = Jsoup.connect("https://smart-lab.ru/q/shares/").get();
                         FileWriter fileWriter = new FileWriter("src/main/resources/data/smartLab_main_page.html");
@@ -116,17 +125,28 @@ public void forWorkWithButtons(Update update){
                            // System.out.println("\""+ strElement + "\"");
 
 
-                            if (strElement.contains("trades-table__name")){
-                                System.out.println("name: "+returnListName(element));
+                            if (strElement.contains("trades-table__name")&& strElement.contains("trades-table__price")){
+                                mapShares.put(returnListName(element),returnListPrice(element));
                             }
-                            if (strElement.contains("trades-table__price")){
-                                System.out.println("price: "+returnListPrice(element));
-                            }
+                        }
 
-
-
+                        for (Map.Entry<String,String>mapShare: mapShares.entrySet()){
+                            builderShares.append(mapShare.getKey()+" - "+ mapShare.getValue()+ "руб.\n");
 
                         }
+
+                        FileWriter fileWriterForShares = new FileWriter("src/main/resources/data/name_price.txt");
+                        fileWriterForShares.write(builderShares.toString());
+                        fileWriterForShares.close();
+
+                        SendDocument sendDocument = SendDocument.builder()
+                                .document(new InputFile(new File("src/main/resources/data/name_price.txt")))
+                                .chatId(chatId)
+                                .build();
+
+
+                        execute(sendDocument);
+
 
                     }catch (Exception e){
                         System.out.println(e.getMessage());
@@ -150,6 +170,10 @@ public void forWorkWithButtons(Update update){
 
         }
 }
+
+    public Map<String, String> getMapShares() {
+        return mapShares;
+    }
 
     public String returnListName(Element element) {
         String name = "";
