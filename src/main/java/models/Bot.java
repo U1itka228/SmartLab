@@ -22,6 +22,7 @@ import java.util.Map;
 
 public class Bot extends TelegramLongPollingBot {
 
+    Document document;
     Map<String,String>mapShares = new HashMap<>();
     StringBuilder builderShares = new StringBuilder();
 
@@ -35,6 +36,7 @@ public class Bot extends TelegramLongPollingBot {
          .callbackData("цена указанной акции")
          .build();
 
+ boolean isButtonForPriceShare = false;
  private InlineKeyboardButton buttonForNotificationMinPrice = InlineKeyboardButton.builder()
          .text("Получить желаемую цену акции")
          .callbackData("желаемая цена акции")
@@ -64,24 +66,30 @@ public class Bot extends TelegramLongPollingBot {
     public void forWorkWithText(Update update){
         if (update.hasMessage()) {
 
-
-            String textMessage = update.getMessage().getText();
-            if (textMessage.compareToIgnoreCase("/start")==0){
-
-
                 Long idUser = update.getMessage().getFrom().getId();
 
                 SendMessage sendMessage = new SendMessage();
                 sendMessage.setChatId(idUser);
+            String textMessage = update.getMessage().getText();
+            if (textMessage.compareToIgnoreCase("/start")==0){
+
+
+
                 sendMessage.setText("Меню");
                 sendMessage.setReplyMarkup(keyboardForMenu);
 
-                try {
-                    execute(sendMessage);
-                }catch (Exception ex){
-                    System.out.println(ex.getMessage());
-                }
+
             }
+                if (isButtonForPriceShare && mapShares.containsKey(textMessage)){
+                    sendMessage.setText("Цена "+ textMessage + " состовляет "+ mapShares.get(textMessage)+ "руб.");
+                    isButtonForPriceShare = false;
+                }
+            try {
+                execute(sendMessage);
+            }catch (Exception ex){
+                System.out.println(ex.getMessage());
+            }
+
         }
     }
 
@@ -91,6 +99,12 @@ public void forWorkWithButtons(Update update){
             String callbackData = update.getCallbackQuery().getData();
             Long chatId = update.getCallbackQuery().getMessage().getChatId();
             Integer messageId = update.getCallbackQuery().getMessage().getMessageId();
+            try {
+                document = Jsoup.connect("https://smart-lab.ru/q/shares/").get();
+                fullMapNamePriceShare();
+            }catch (Exception e){
+                e.getMessage();
+            }
 
                 EditMessageText editMessageText = EditMessageText.builder()
                         .text("")
@@ -110,7 +124,7 @@ public void forWorkWithButtons(Update update){
 
 
                     try {
-                    Document document = Jsoup.connect("https://smart-lab.ru/q/shares/").get();
+
                         FileWriter fileWriter = new FileWriter("src/main/resources/data/smartLab_main_page.html");
                         fileWriter.write(document.toString());
 
@@ -155,6 +169,10 @@ public void forWorkWithButtons(Update update){
 
                 }
 
+                else if (callbackData.equals(buttonForPriceShare.getCallbackData())){
+                    editMessageText.setText("Введите название акции");
+                    isButtonForPriceShare = true;
+                }
                 try {
                     if (editMessageText.getText()!=null){
                         System.out.println("editMessageText:" + editMessageText);
@@ -206,6 +224,31 @@ public void forWorkWithButtons(Update update){
         return price;
     }
 
+public void fullMapNamePriceShare(){
+
+        try{
+            document = Jsoup.connect("https://smart-lab.ru/q/shares/").get();
+            Elements elements = document.select("tr");
+            for (Element element : elements){
+                String strElement = element.toString();
+                // System.out.println("\""+ strElement + "\"");
+
+
+                if (strElement.contains("trades-table__name")&& strElement.contains("trades-table__price")){
+                    mapShares.put(returnListName(element),returnListPrice(element));
+                }
+            }
+
+            for (Map.Entry<String,String>mapShare: mapShares.entrySet()){
+                builderShares.append(mapShare.getKey()+" - "+ mapShare.getValue()+ "руб.\n");
+
+            }
+        }catch (Exception e){
+            System.out.println(e.getMessage());
+        }
+
+
+}
 
     @Override
     public String getBotUsername() {
