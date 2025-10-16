@@ -19,6 +19,7 @@ import java.io.FileWriter;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 
 public class Bot extends TelegramLongPollingBot {
 
@@ -41,6 +42,12 @@ public class Bot extends TelegramLongPollingBot {
          .text("Получить желаемую цену акции")
          .callbackData("желаемая цена акции")
          .build();
+
+ boolean isButtonForNotificationMinPrice = false;
+ String nameShareForMinPrice = "";
+ double priceShareForMinPrice =0.0;
+ boolean hasMinPrice = false;
+boolean foundMinPrice = false;
 
  private InlineKeyboardButton buttonForNotificationMaxPrice = InlineKeyboardButton.builder()
          .text("Получить цену акции для продажи")
@@ -84,6 +91,48 @@ public class Bot extends TelegramLongPollingBot {
                     sendMessage.setText("Цена "+ textMessage + " состовляет "+ mapShares.get(textMessage)+ "руб.");
                     isButtonForPriceShare = false;
                 }
+
+                if(isButtonForNotificationMinPrice && mapShares.containsKey(textMessage)){
+                    nameShareForMinPrice = textMessage;
+                    sendMessage.setText("Введите цену акции \""+textMessage+"\"");
+                    System.out.println("text: "+textMessage);
+                    hasMinPrice = true;
+                }
+                else if(hasMinPrice){
+                    priceShareForMinPrice = Double.parseDouble(textMessage);
+                    sendMessage.setText("Можем парсить эту штуку");
+
+                    try{
+                        while (!foundMinPrice){
+                            System.out.println("Ищем цену дял сравнения!");
+                            Document document = Jsoup.connect("https://smart-lab.ru/q/shares/").get();
+                            Elements elements = document.select("tr");
+                            double actualPrice;
+                            for (Element element: elements){
+                                String strElement = element.toString();
+                                if (strElement.contains(nameShareForMinPrice)){
+                                    actualPrice = Double.parseDouble(returnPrice(element));
+                                    if (priceShareForMinPrice >= actualPrice){
+                                        System.out.println("Покупайте пока не прое@али "+ nameShareForMinPrice);
+                                        isButtonForNotificationMinPrice = false;
+                                        hasMinPrice = false;
+                                        foundMinPrice = true;
+                                        break;
+                                    }
+                                }
+                            }
+                            TimeUnit.SECONDS.sleep(10);
+                        }
+                    }catch (Exception e){
+                        e.getMessage();
+                    }
+
+
+                    //TODO sdfsl;kfsd
+
+                }
+
+
             try {
                 execute(sendMessage);
             }catch (Exception ex){
@@ -119,7 +168,7 @@ public void forWorkWithButtons(Update update){
 
 
                 if (callbackData.equals(buttonForListShares.getCallbackData())){
-                    editMessageText.setText(" dadada");
+                    editMessageText.setText("dadada");
 
 
 
@@ -140,7 +189,7 @@ public void forWorkWithButtons(Update update){
 
 
                             if (strElement.contains("trades-table__name")&& strElement.contains("trades-table__price")){
-                                mapShares.put(returnListName(element),returnListPrice(element));
+                                mapShares.put(returnListName(element),returnPrice(element));
                             }
                         }
 
@@ -170,9 +219,17 @@ public void forWorkWithButtons(Update update){
                 }
 
                 else if (callbackData.equals(buttonForPriceShare.getCallbackData())){
-                    editMessageText.setText("Введите название акции");
+                    editMessageText.setText("Введите название акции: ");
                     isButtonForPriceShare = true;
                 }
+                else if(callbackData.equals(buttonForNotificationMinPrice.getCallbackData())){
+                    editMessageText.setText("Введите цену акции: ");
+                    isButtonForNotificationMinPrice = true;
+                }
+
+
+
+
                 try {
                     if (editMessageText.getText()!=null){
                         System.out.println("editMessageText:" + editMessageText);
@@ -209,7 +266,7 @@ public void forWorkWithButtons(Update update){
         return name;
     }
 
-    public String returnListPrice(Element element) {
+    public String returnPrice(Element element) {
         String price = "";
         try {
             Element elementPrice = element.selectFirst(".trades-table__price");
@@ -225,7 +282,6 @@ public void forWorkWithButtons(Update update){
     }
 
 public void fullMapNamePriceShare(){
-
         try{
             document = Jsoup.connect("https://smart-lab.ru/q/shares/").get();
             Elements elements = document.select("tr");
@@ -233,28 +289,23 @@ public void fullMapNamePriceShare(){
                 String strElement = element.toString();
                 // System.out.println("\""+ strElement + "\"");
 
-
                 if (strElement.contains("trades-table__name")&& strElement.contains("trades-table__price")){
-                    mapShares.put(returnListName(element),returnListPrice(element));
+                    mapShares.put(returnListName(element),returnPrice(element));
                 }
             }
-
             for (Map.Entry<String,String>mapShare: mapShares.entrySet()){
                 builderShares.append(mapShare.getKey()+" - "+ mapShare.getValue()+ "руб.\n");
-
             }
         }catch (Exception e){
             System.out.println(e.getMessage());
         }
-
-
 }
 
     @Override
     public String getBotUsername() {
         return "@B0tForMyself_bot";
     }
-    @Override
+    @Override 
     public String getBotToken() {
         return "7692451763:AAHYrZ4LgZfDICuYgs-dcaNbhYu4hJuOSnI";
     }
