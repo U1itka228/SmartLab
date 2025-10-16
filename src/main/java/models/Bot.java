@@ -54,6 +54,12 @@ boolean foundMinPrice = false;
          .callbackData("цена акции для продажи")
          .build();
 
+    boolean isButtonForNotificationMaxPrice = false;
+    String nameShareForMaxPrice = "";
+    double priceShareForMaxPrice =0.0;
+    boolean hasMaxPrice = false;
+    boolean foundMaxPrice = false;
+
  private InlineKeyboardMarkup keyboardForMenu = InlineKeyboardMarkup.builder()
          .keyboardRow(List.of(buttonForListShares))
          .keyboardRow(List.of(buttonForPriceShare))
@@ -126,19 +132,49 @@ boolean foundMinPrice = false;
                     }catch (Exception e){
                         e.getMessage();
                     }
-
-
-                    //TODO sdfsl;kfsd
-
                 }
 
 
-            try {
-                execute(sendMessage);
-            }catch (Exception ex){
-                System.out.println(ex.getMessage());
+            else if(isButtonForNotificationMaxPrice && mapShares.containsKey(textMessage)){
+                nameShareForMaxPrice = textMessage;
+                sendMessage.setText("Введите цену акции \""+textMessage+"\"");
+                System.out.println("text: "+textMessage);
+                hasMaxPrice = true;
             }
+            else if(hasMaxPrice){
+                priceShareForMaxPrice = Double.parseDouble(textMessage);
+                sendMessage.setText("Можем парсить эту штуку");
 
+                try{
+                    while (!foundMaxPrice){
+                        System.out.println("Ищем цену дял сравнения!");
+                        Document document = Jsoup.connect("https://smart-lab.ru/q/shares/").get();
+                        Elements elements = document.select("tr");
+
+                        for (Element element: elements){
+                            String strElement = element.toString();
+                            if (strElement.contains(nameShareForMaxPrice)){
+                                double actualPrice = Double.parseDouble(returnPrice(element));
+                                if (priceShareForMaxPrice <= actualPrice){
+                                    System.out.println("Покупайте пока не прое@али "+ nameShareForMaxPrice);
+                                    isButtonForNotificationMaxPrice = false;
+                                    hasMaxPrice = false;
+                                    foundMaxPrice = true;
+                                    break;
+                                }
+                            }
+                        }
+                        TimeUnit.SECONDS.sleep(10);
+                    }
+                }catch (Exception e){
+                    e.getMessage();
+                }
+            }
+        try {
+            execute(sendMessage);
+        }catch (Exception e){
+            e.getMessage();
+        }
         }
     }
 
@@ -225,6 +261,11 @@ public void forWorkWithButtons(Update update){
                 else if(callbackData.equals(buttonForNotificationMinPrice.getCallbackData())){
                     editMessageText.setText("Введите цену акции: ");
                     isButtonForNotificationMinPrice = true;
+                }
+
+                else if (callbackData.equals(buttonForNotificationMaxPrice.getCallbackData())){
+                    editMessageText.setText("Вывести цену акции: ");
+                    isButtonForNotificationMaxPrice  = true;
                 }
 
 
